@@ -1,0 +1,3 @@
+#FILE	NUM_FOUND	aph(3'')-Ib	aph(3'')-Ib_5	aph(6)-Id	aph(6)-Id_1	blaCTX-M-15	blaCTX-M-15_1	blaEC-18	blaTEM-1	blaTEM-1B_1	dfrA7	dfrA7_5	mdf(A)_1	sul1	sul1_5	sul2	sul2_3	tet(A)	tet(A)_6
+ncbi_results.txt	9	100.00	.	100.00	.	100.00	.	100.00	100.00	.	100.00	.	.	91.91	.	100.00	.	100.00	.
+resfi_results.txt	9	.	100.00	.	100.00	.	100.00	.	.	100.00	.	100.00	100.00	.	90.89	.	100.00	.	97.80
