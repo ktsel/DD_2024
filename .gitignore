@@ -168,12 +168,15 @@ cython_debug/
 *.snakemake/
 
 # Ignore everything in test_output except specific files
-test_output/*
-!test_output/fastqc/*.html
-!test_output/SRR292678sub_prokka/annotation.txt
-!test_output/SRR292678sub_quast/report.html
-!test_output/SRR292678sub_spades/scaffolds.fasta
-!test_output/SRR292678sub_abricate/*.txt
+hw3/test_output/*
+!hw3/test_output/fastqc/*.html
+!hw3/test_output/SRR292678sub_prokka/annotation.txt
+!hw3/test_output/SRR292678sub_quast/report.html
+!hw3/test_output/SRR292678sub_spades/scaffolds.fasta
+!hw3/test_output/SRR292678sub_abricate/*.txt
 
 test_input/*
-!test_input/*.txt
+!hw3/test_input/*.txt
+
+# Ignore metadata files with "Zone.Identifier"
+*Zone.Identifier
