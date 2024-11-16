@@ -168,6 +168,7 @@ cython_debug/
 *.snakemake/
 
 # Ignore everything in test_output except specific files
+
 hw3/test_output/*
 !hw3/test_output/fastqc/*.html
 !hw3/test_output/SRR292678sub_prokka/annotation.txt

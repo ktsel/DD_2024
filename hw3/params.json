@@ -1,0 +1,9 @@
+{
+    "global_params": {"outdir": "./test_output", "threads": 8},
+    "fastqc": {"threads": 8},
+    "spades": {"threads": 4},
+    "quast": {"outdir": "./test_output"},
+    "prokka": {"prefix": "annotation"},
+    "abricate": {"outdir": "./test_output"}
+ }
+ 

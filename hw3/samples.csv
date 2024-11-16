@@ -1,0 +1,4 @@
+sample_id,read_1,read_2,assembly
+SRR292678sub,./test_input/SRR292678sub_S1_L001_R1_001.fastq.gz,./test_input/SRR292678sub_S1_L001_R2_001.fastq.gz
+SRR292678sub_assambly,./test_input/SRR292678sub_S1_L001_R1_001.fastq.gz,./test_input/SRR292678sub_S1_L001_R2_001.fastq.gz,./test_input/scaffolds.fasta
+SRR292770,./test_input/SRR292770_S1_L001_R1_001.fastq.gz,./test_input/SRR292770_S1_L001_R2_001.fastq.gz

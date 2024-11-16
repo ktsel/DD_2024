@@ -1,0 +1,112 @@
+import os
+import csv
+import json
+
+# Абсолютные пути для работы пайплайна
+hw_dir = os.path.abspath(".")  # Текущая директория (hw3)
+test_input_dir = os.path.abspath("./test_input")
+
+
+# Читаем параметры из params.json
+with open("params.json", "r") as f:
+    params = json.load(f)
+
+# Абсолютный путь к директории вывода из params.json
+test_output_dir = os.path.abspath(params["global_params"]["outdir"])
+
+#parsing of csv file
+samples = {}
+
+with open(os.path.join(hw_dir, "samples.csv"), "r") as csvfile:
+    reader = csv.DictReader(csvfile)
+    for row in reader:
+        sample_id = row["sample_id"]
+        samples[sample_id] = {
+            "read_1": os.path.abspath(row.get("read_1", "")),
+            "read_2": os.path.abspath(row.get("read_2", "")),
+            "assembly": os.path.abspath(row.get("assembly", "")) if row.get("assembly", "") else ""
+        }
+
+# Разделяем образцы на те, у которых есть assembly, и те, у которых его нет
+samples_with_assembly = [sample_id for sample_id, paths in samples.items() if paths["assembly"]]
+samples_without_assembly = [sample_id for sample_id, paths in samples.items() if not paths["assembly"]]
+
+
+rule all:
+    input:
+        expand(f"{test_output_dir}/{{sample}}_abricate/ncbi_results.txt", sample=samples.keys()),
+        expand(f"{test_output_dir}/{{sample}}_abricate/resfi_results.txt", sample=samples.keys())
+
+# сначала хотим проверить качество исходных данных
+rule fastqc_raw:
+    input:
+        read1=lambda wildcards: samples[wildcards.sample]["read_1"],
+        read2=lambda wildcards: samples[wildcards.sample]["read_2"]
+    conda: "./envs/fastqc.yaml"
+    threads: params["fastqc"]["threads"]
+    output:
+        fastqc_html_1=f"{test_output_dir}/{{sample}}_fastqc/read1_fastqc.html",
+        fastqc_html_2=f"{test_output_dir}/{{sample}}_fastqc/read2_fastqc.html"
+    params:
+        outdir=f"{test_output_dir}/{{sample}}_fastqc"
+    shell:
+        "fastqc {input.read1} {input.read2} -o {params.outdir} -t {threads}"
+
+#Сборка генома
+rule spades:
+    input:
+        read1=lambda wildcards: samples[wildcards.sample]["read_1"],
+        read2=lambda wildcards: samples[wildcards.sample]["read_2"]
+    conda: "./envs/spades.yaml"
+    threads: params["spades"]["threads"]
+    output:
+        scaffolds=f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+    params:
+        outdir=f"{test_output_dir}/{{sample}}_spades"
+    shell:
+        "spades.py -1 {input.read1} -2 {input.read2} -o {params.outdir}"
+
+#Оценка качества сборк
+
+rule quast:
+    input:
+        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+    conda: "./envs/quast.yaml"
+    output:
+        report=f"{test_output_dir}/{{sample}}_quast/report.html"
+    params:
+        outdir=f"{test_output_dir}/{{sample}}_quast"
+    shell:
+        "quast.py {input.scaffolds} -o {params.outdir}"
+
+
+#Аннотация генома
+rule prokka:
+    input:
+        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+    conda: "./envs/prokka.yaml"
+    output:
+        annotated_dir=directory(f"{test_output_dir}/{{sample}}_prokka"),
+        annotation=f"{test_output_dir}/{{sample}}_prokka/annotation.txt"  # Output directory for Prokka results
+    params:
+        prefix=params["prokka"]["prefix"]
+    shell:
+        'prokka --outdir {output.annotated_dir} --force --prefix {params.prefix} {input.scaffolds}'
+
+#Поиск генов устойчивости и вирулентности   
+rule abricate:
+    input:
+        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+    conda: "./envs/abricate.yaml"
+    output:
+        ncbi_results=f"{test_output_dir}/{{sample}}_abricate/ncbi_results.txt",
+        resfinder_results=f"{test_output_dir}/{{sample}}_abricate/resfi_results.txt"
+    params:
+        outdir=f"{test_output_dir}/{{sample}}_abricate"
+    shell:
+        """
+        abricate --db ncbi {input.scaffolds} > {output.ncbi_results} && \
+        abricate --db resfinder {input.scaffolds} > {output.resfinder_results}
+        """
+
+
