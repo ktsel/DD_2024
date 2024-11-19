@@ -1,11 +1,12 @@
+
 import os
 import csv
 import json
 
-# Абсолютные пути для работы пайплайна
-hw_dir = os.path.abspath(".")  # Текущая директория (hw3)
-test_input_dir = os.path.abspath("./test_input")
 
+# Абсолютные пути для работы пайплайна
+hw_dir = os.path.abspath(".")
+test_input_dir = os.path.abspath("./test_input")
 
 # Читаем параметры из params.json
 with open("params.json", "r") as f:
@@ -14,30 +15,81 @@ with open("params.json", "r") as f:
 # Абсолютный путь к директории вывода из params.json
 test_output_dir = os.path.abspath(params["global_params"]["outdir"])
 
-#parsing of csv file
+# Создаем словарь для хранения информации о каждом уникальном sample_id
 samples = {}
+unique_sample_ids = set()
 
+# Первый проход - собираем все уникальные sample_id и их read файлы
 with open(os.path.join(hw_dir, "samples.csv"), "r") as csvfile:
     reader = csv.DictReader(csvfile)
     for row in reader:
-        sample_id = row["sample_id"]
-        samples[sample_id] = {
-            "read_1": os.path.abspath(row.get("read_1", "")),
-            "read_2": os.path.abspath(row.get("read_2", "")),
-            "assembly": os.path.abspath(row.get("assembly", "")) if row.get("assembly", "") else ""
-        }
+        base_sample_id = row["sample_id"].replace("_assembly", "")
+        unique_sample_ids.add(base_sample_id)
+        
+        # Если это первая встреча sample_id или его версии с _assembly
+        if base_sample_id not in samples:
+            samples[base_sample_id] = {
+                "read_1": os.path.abspath(row.get("read_1", "")),
+                "read_2": os.path.abspath(row.get("read_2", "")),
+                "assembly": ""
+            }
+        
+        # Если есть assembly, добавляем его (даже если это в строке с _assembly)
+        if row.get("assembly"):
+            samples[base_sample_id]["assembly"] = os.path.abspath(row["assembly"])
 
-# Разделяем образцы на те, у которых есть assembly, и те, у которых его нет
-samples_with_assembly = [sample_id for sample_id, paths in samples.items() if paths["assembly"]]
-samples_without_assembly = [sample_id for sample_id, paths in samples.items() if not paths["assembly"]]
+# Создаем списки образцов с assembly и без него
+samples_with_assembly = []
+samples_without_assembly = []
 
+# Распределяем образцы по спискам
+for sample_id in unique_sample_ids:
+    if samples[sample_id]["assembly"]:
+        samples_with_assembly.append(sample_id)
+    else:
+        samples_without_assembly.append(sample_id)
+
+def get_final_output():
+    final_outputs = []
+    
+    # Для образцов с assembly
+    for sample in samples_with_assembly:
+        final_outputs.extend([
+            f"{test_output_dir}/{sample}_assembly_quast/report.html",  # Обратите внимание на _assembly
+            f"{test_output_dir}/{sample}_assembly_prokka/annotation.txt",
+            f"{test_output_dir}/{sample}_assembly_abricate/ncbi_results.txt",
+            f"{test_output_dir}/{sample}_assembly_abricate/resfi_results.txt"
+        ])
+    
+    # Для образцов без assembly
+    for sample in samples_without_assembly:
+        final_outputs.extend([
+            f"{test_output_dir}/{sample}_fastqc/{sample}_1_fastqc.html",
+            f"{test_output_dir}/{sample}_fastqc/{sample}_2_fastqc.html",
+            f"{test_output_dir}/{sample}_spades/scaffolds.fasta",
+            f"{test_output_dir}/{sample}_quast/report.html",
+            f"{test_output_dir}/{sample}_prokka/annotation.txt",
+            f"{test_output_dir}/{sample}_abricate/ncbi_results.txt",
+            f"{test_output_dir}/{sample}_abricate/resfi_results.txt"
+        ])
+    
+    return final_outputs
 
 rule all:
     input:
-        expand(f"{test_output_dir}/{{sample}}_abricate/ncbi_results.txt", sample=samples.keys()),
-        expand(f"{test_output_dir}/{{sample}}_abricate/resfi_results.txt", sample=samples.keys())
+        # # Для обычных образцов
+        # expand(f"{test_output_dir}/{{sample}}_abricate/ncbi_results.txt", 
+        #        sample=samples_without_assembly),
+        # expand(f"{test_output_dir}/{{sample}}_abricate/resfi_results.txt", 
+        #        sample=samples_without_assembly),
+        # # Для образцов с assembly добавляем суффикс _assembly
+        # expand(f"{test_output_dir}/{{sample}}_assembly_abricate/ncbi_results.txt", 
+        #        sample=samples_with_assembly),
+        # expand(f"{test_output_dir}/{{sample}}_assembly_abricate/resfi_results.txt", 
+        #        sample=samples_with_assembly)
+        get_final_output()
 
-# сначала хотим проверить качество исходных данных
+# Правило fastqc запускается только для образцов без assembly
 rule fastqc_raw:
     input:
         read1=lambda wildcards: samples[wildcards.sample]["read_1"],
@@ -45,14 +97,15 @@ rule fastqc_raw:
     conda: "./envs/fastqc.yaml"
     threads: params["fastqc"]["threads"]
     output:
-        fastqc_html_1=f"{test_output_dir}/{{sample}}_fastqc/read1_fastqc.html",
-        fastqc_html_2=f"{test_output_dir}/{{sample}}_fastqc/read2_fastqc.html"
+        fastqc_html_1=f"{test_output_dir}/{{sample}}_fastqc/{{sample}}_1_fastqc.html",
+        fastqc_html_2=f"{test_output_dir}/{{sample}}_fastqc/{{sample}}_2_fastqc.html"
     params:
         outdir=f"{test_output_dir}/{{sample}}_fastqc"
     shell:
         "fastqc {input.read1} {input.read2} -o {params.outdir} -t {threads}"
 
-#Сборка генома
+
+# Правило spades запускается только для образцов без assembly
 rule spades:
     input:
         read1=lambda wildcards: samples[wildcards.sample]["read_1"],
@@ -66,11 +119,14 @@ rule spades:
     shell:
         "spades.py -1 {input.read1} -2 {input.read2} -o {params.outdir}"
 
-#Оценка качества сборк
-
+# Правило quast запускается для всех образцов, но использует разные входные данные
 rule quast:
     input:
-        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+        scaffolds=lambda wildcards: (
+            samples[wildcards.sample.replace("_assembly", "")]["assembly"]
+            if "_assembly" in wildcards.sample
+            else f"{test_output_dir}/{wildcards.sample}_spades/scaffolds.fasta"
+        )
     conda: "./envs/quast.yaml"
     output:
         report=f"{test_output_dir}/{{sample}}_quast/report.html"
@@ -79,24 +135,31 @@ rule quast:
     shell:
         "quast.py {input.scaffolds} -o {params.outdir}"
 
-
-#Аннотация генома
+# Правило prokka использует ту же логику, что и quast
 rule prokka:
     input:
-        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+        scaffolds=lambda wildcards: (
+            samples[wildcards.sample.replace("_assembly", "")]["assembly"]
+            if "_assembly" in wildcards.sample
+            else f"{test_output_dir}/{wildcards.sample}_spades/scaffolds.fasta"
+        )
     conda: "./envs/prokka.yaml"
     output:
         annotated_dir=directory(f"{test_output_dir}/{{sample}}_prokka"),
-        annotation=f"{test_output_dir}/{{sample}}_prokka/annotation.txt"  # Output directory for Prokka results
+        annotation=f"{test_output_dir}/{{sample}}_prokka/annotation.txt"
     params:
         prefix=params["prokka"]["prefix"]
     shell:
         'prokka --outdir {output.annotated_dir} --force --prefix {params.prefix} {input.scaffolds}'
 
-#Поиск генов устойчивости и вирулентности   
+# Правило abricate также использует ту же логику для входных данных
 rule abricate:
     input:
-        scaffolds=lambda wildcards: samples[wildcards.sample]["assembly"] or f"{test_output_dir}/{{sample}}_spades/scaffolds.fasta"
+        scaffolds=lambda wildcards: (
+            samples[wildcards.sample.replace("_assembly", "")]["assembly"]
+            if "_assembly" in wildcards.sample
+            else f"{test_output_dir}/{wildcards.sample}_spades/scaffolds.fasta"
+        )
     conda: "./envs/abricate.yaml"
     output:
         ncbi_results=f"{test_output_dir}/{{sample}}_abricate/ncbi_results.txt",
@@ -108,5 +171,3 @@ rule abricate:
         abricate --db ncbi {input.scaffolds} > {output.ncbi_results} && \
         abricate --db resfinder {input.scaffolds} > {output.resfinder_results}
         """
-
-

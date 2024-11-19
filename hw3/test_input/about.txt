@@ -1,3 +1,3 @@
-test_input were performed with sample SRR292678sub_S1_L001_R1_001.fastq.gz,
-SRR292678sub_S1_L001_R2_001.fastq.gz and its assembly as scaffolds.fasta.
+MSK - фаги, заражающие бактерий E. coli
+SRR31122807 - геном SARS-CoV-2 (+ scaffolds)
 
