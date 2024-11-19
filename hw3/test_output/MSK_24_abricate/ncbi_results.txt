@@ -1,0 +1,2 @@
+#FILE	SEQUENCE	START	END	STRAND	GENE	COVERAGE	COVERAGE_MAP	GAPS	%COVERAGE	%IDENTITY	DATABASE	ACCESSION	PRODUCT	RESISTANCE
+/home/ktsel/M1/DD_2024_private/hw3/test_output/MSK_24_spades/scaffolds.fasta	NODE_2_length_3815_cov_65.448903	1559	2372	-	aph(3')-Ia	1-814/816	===============	0/0	99.75	99.39	ncbi	NG_047430.1	aminoglycoside O-phosphotransferase APH(3')-Ia	KANAMYCIN
