@@ -1,0 +1,3 @@
+MSK - фаги, заражающие бактерий E. coli
+SRR31122807 - геном SARS-CoV-2 (+ scaffolds)
+
