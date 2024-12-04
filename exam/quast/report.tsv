@@ -1,0 +1,23 @@
+Assembly	GCA_000308975.2_ASM30897v2_genomic
+# contigs (>= 0 bp)	1
+# contigs (>= 1000 bp)	1
+# contigs (>= 5000 bp)	1
+# contigs (>= 10000 bp)	1
+# contigs (>= 25000 bp)	1
+# contigs (>= 50000 bp)	1
+Total length (>= 0 bp)	4754148
+Total length (>= 1000 bp)	4754148
+Total length (>= 5000 bp)	4754148
+Total length (>= 10000 bp)	4754148
+Total length (>= 25000 bp)	4754148
+Total length (>= 50000 bp)	4754148
+# contigs	1
+Largest contig	4754148
+Total length	4754148
+GC (%)	50.75
+N50	4754148
+N90	4754148
+auN	4754148.0
+L50	1
+L90	1
+# N's per 100 kbp	94.68
